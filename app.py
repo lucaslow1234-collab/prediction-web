@@ -1,11 +1,12 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, request
 from collections import Counter, defaultdict
 import re
 import os
 
 app = Flask(__name__)
 
-raw_data = """
+
+DEFAULT_DATA = """
 🔆3439260期 4+1+4=9 小单
 🔆3439261期 0+6+6=12 小双
 🔆3439262期 1+3+9=13 小单
@@ -28,28 +29,41 @@ raw_data = """
 🔆3439279期 1+3+2=6 小双
 """
 
-history = re.findall(r'[大小单双]{2}', raw_data)
 
-CATS = ["小单", "大单", "小双", "大双"]
+def parse_history(raw_data):
+    return re.findall(
+        r'[大小单双]{2}',
+        raw_data
+    )
 
 
-def trend_model(history):
+def predict(history):
+
     score = Counter()
-    recent = history[-8:]
 
-    for i, cat in enumerate(reversed(recent)):
-        score[cat] += (8 - i)
+    if len(history) < 5:
+        return [], 0
 
-    return score
-
-
-def transition_model(history):
-    score = Counter()
     latest = history[-1]
 
-    transitions = defaultdict(Counter)
+    # Trend
+    recent = history[-8:]
 
-    for i in range(len(history)-1):
+    for i, cat in enumerate(
+        reversed(recent)
+    ):
+        score[cat] += (
+            8 - i
+        )
+
+    # Transition
+    transitions = defaultdict(
+        Counter
+    )
+
+    for i in range(
+        len(history)-1
+    ):
         transitions[
             history[i]
         ][
@@ -62,88 +76,56 @@ def transition_model(history):
 
         score[nxt] += cnt * 3
 
-    return score
-
-
-def anti_streak_model(history):
-    score = Counter()
-    latest = history[-1]
-
+    # Anti streak
     streak = 1
 
-    for i in range(len(history)-2, -1, -1):
+    for i in range(
+        len(history)-2,
+        -1,
+        -1
+    ):
         if history[i] == latest:
             streak += 1
         else:
             break
 
     if streak >= 2:
-        score[latest] -= streak * 10
-
-    return score
-
-
-def split_model(history):
-    score = Counter()
-    recent = history[-10:]
-
-    big = sum("大" in x for x in recent)
-    even = sum("双" in x for x in recent)
-
-    size_pref = "小" if big >= 7 else "大"
-    parity_pref = "单" if even >= 7 else "双"
-
-    score[size_pref + parity_pref] += 10
-
-    return score
-
-
-def predict(history, weights):
-
-    total = Counter()
-
-    models = {
-        "trend": trend_model(history),
-        "transition": transition_model(history),
-        "split": split_model(history),
-        "streak": anti_streak_model(history)
-    }
-
-    for name, weight in weights.items():
-        for k, v in models[name].items():
-            total[k] += v * weight
+        score[latest] *= 0.4
 
     ranked = sorted(
-        total.items(),
+        score.items(),
         key=lambda x: x[1],
         reverse=True
     )
 
-    confidence = max(
-        0,
-        round(
-            ranked[0][1] - ranked[2][1],
+    confidence = 0
+
+    if len(ranked) >= 3:
+        confidence = round(
+            ranked[0][1]
+            - ranked[2][1],
             2
         )
-    )
 
     return ranked, confidence
 
 
-def evaluate(weights):
+def backtest(history):
 
     wins = 0
     total = 0
-    history_log = []
+    logs = []
 
-    for i in range(10, len(history)):
+    for i in range(
+        10,
+        len(history)
+    ):
 
         ranked, conf = predict(
-            history[:i],
-            weights
+            history[:i]
         )
 
-        if conf < 3:
+        if len(ranked) < 2:
             continue
 
         picks = [
@@ -153,9 +135,11 @@ def evaluate(weights):
 
         actual = history[i]
 
-        win = actual in picks
+        win = (
+            actual in picks
+        )
 
-        history_log.append({
+        logs.append({
             "round": i,
             "actual": actual,
             "pick": picks,
@@ -171,74 +155,83 @@ def evaluate(weights):
         wins / total * 100
     ) if total else 0
 
-    return {
-        "rate": round(rate, 2),
-        "wins": wins,
-        "total": total,
-        "log": history_log
-    }
+    return round(
+        rate,
+        2
+    ), logs[-8:]
 
 
-CONFIGS = [
-    {
-        "trend": 1,
-        "transition": 2,
-        "split": 4,
-        "streak": 2
-    },
-    {
-        "trend": 2,
-        "transition": 4,
-        "split": 5,
-        "streak": 3
-    },
-    {
-        "trend": 3,
-        "transition": 2,
-        "split": 3,
-        "streak": 4
-    }
-]
-
-results = []
-
-for cfg in CONFIGS:
-    r = evaluate(cfg)
-    r["weights"] = cfg
-    results.append(r)
-
-best = sorted(
-    results,
-    key=lambda x: x["rate"],
-    reverse=True
-)[0]
-
-
-@app.route("/")
+@app.route(
+    "/",
+    methods=["GET", "POST"]
+)
 def home():
 
+    raw_data = DEFAULT_DATA
+
+    if request.method == "POST":
+        raw_data = request.form.get(
+            "history",
+            DEFAULT_DATA
+        )
+
+    history = parse_history(
+        raw_data
+    )
+
     ranked, conf = predict(
-        history,
-        best["weights"]
+        history
+    )
+
+    rate, logs = backtest(
+        history
     )
 
     prediction = {
-        "round": "NEXT",
-        "main": ranked[0][0],
-        "second": ranked[1][0],
-        "defense": ranked[2][0],
-        "kill": ranked[-1][0],
-        "confidence": conf,
-        "accuracy": f'{best["rate"]}%'
+        "main":
+        ranked[0][0]
+        if len(ranked) > 0
+        else "-",
+
+        "second":
+        ranked[1][0]
+        if len(ranked) > 1
+        else "-",
+
+        "defense":
+        ranked[2][0]
+        if len(ranked) > 2
+        else "-",
+
+        "kill":
+        ranked[-1][0]
+        if len(ranked) > 0
+        else "-",
+
+        "confidence":
+        conf,
+
+        "accuracy":
+        str(rate) + "%"
     }
 
     return render_template(
         "index.html",
         data=prediction,
-        logs=best["log"][-8:]
+        logs=logs,
+        raw_data=raw_data
     )
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    port = int(
+        os.environ.get(
+            "PORT",
+            5000
+        )
+    )
+
+    app.run(
+        host="0.0.0.0",
+        port=port
+    )
