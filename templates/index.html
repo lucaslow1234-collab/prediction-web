@@ -131,10 +131,57 @@
 
     <div class="confidence-box">
 
-        <h3>
-        🔥 Confidence
-        {{data.confidence}}%
-        </h3>
+        <<h3>
+📈 Accuracy
+{{data.accuracy}}
+</h3>
+
+<div style="
+margin-top:25px;
+background:#21262d;
+padding:20px;
+border-radius:20px;
+">
+
+<h3>📜 Recent Results</h3>
+
+{% for item in logs %}
+
+<div style="
+display:flex;
+justify-content:space-between;
+padding:10px 0;
+border-bottom:
+1px solid #333;
+">
+
+<span>
+Round {{item.round}}
+</span>
+
+<span>
+{{item.actual}}
+</span>
+
+<span>
+{{item.pick[0]}}
+/
+{{item.pick[1]}}
+</span>
+
+<span>
+{% if item.win %}
+✅
+{% else %}
+❌
+{% endif %}
+</span>
+
+</div>
+
+{% endfor %}
+
+</div>
 
         <div class="bar">
             <div class="fill"
@@ -145,10 +192,7 @@
             </div>
         </div>
 
-        <h3>
-        📈 Accuracy
-        {{data.accuracy}}
-        </h3>
+div
 
     </div>
 
