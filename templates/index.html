@@ -1,7 +1,8 @@
+```html
 <!DOCTYPE html>
 <html>
 <head>
-    <title>🔥 NEW VERSION</title>
+    <title>🔥 Prediction Web</title>
 
     <meta name="viewport"
     content="width=device-width, initial-scale=1">
@@ -30,56 +31,6 @@
 
         h1{
             text-align:center;
-            margin-bottom:10px;
-        }
-
-        .round{
-            text-align:center;
-            color:#999;
-            margin-bottom:25px;
-        }
-
-        .pick{
-            display:flex;
-            justify-content:space-between;
-            margin:18px 0;
-            padding:18px;
-            background:#21262d;
-            border-radius:18px;
-            font-size:22px;
-        }
-
-        .big{
-            font-size:28px;
-            font-weight:bold;
-        }
-
-        .confidence-box{
-            margin-top:25px;
-        }
-
-        .bar{
-            background:#222;
-            height:20px;
-            border-radius:20px;
-            overflow:hidden;
-        }
-
-        .fill{
-            background:
-            linear-gradient(
-            90deg,
-            #00ff88,
-            #00ccff
-            );
-
-            height:100%;
-        }
-
-        .footer{
-            text-align:center;
-            color:#aaa;
-            margin-top:20px;
         }
 
         textarea{
@@ -105,7 +56,40 @@
             color:black;
             font-weight:bold;
             cursor:pointer;
-            margin-bottom:20px;
+            margin-bottom:25px;
+        }
+
+        .pick{
+            display:flex;
+            justify-content:space-between;
+            margin:15px 0;
+            padding:18px;
+            background:#21262d;
+            border-radius:18px;
+            font-size:22px;
+        }
+
+        .big{
+            font-size:28px;
+            font-weight:bold;
+        }
+
+        .bar{
+            background:#222;
+            height:20px;
+            border-radius:20px;
+            overflow:hidden;
+        }
+
+        .fill{
+            background:
+            linear-gradient(
+            90deg,
+            #00ff88,
+            #00ccff
+            );
+
+            height:100%;
         }
 
     </style>
@@ -115,126 +99,113 @@
 
 <div class="card">
 
-    <h1>⚡ Prediction Web</h1>
+<h1>⚡ Prediction Web</h1>
 
-    <!-- TEXTBOX -->
-    <form method="POST">
+<form method="POST">
 
-        <textarea
-        name="history"
-        placeholder="Paste history here..."
-        >{{raw_data}}</textarea>
+<textarea
+name="history"
+placeholder="Paste history here..."
+>{{raw_data}}</textarea>
 
-        <button type="submit">
-            🚀 Predict
-        </button>
+<button type="submit">
+🚀 Predict
+</button>
 
-    </form>
+</form>
 
-    <div class="round">
-        Round {{data.round}}
-    </div>
+<div class="pick">
+<span>🎯 主攻</span>
+<span class="big">
+{{data.main}}
+</span>
+</div>
 
-    <div class="pick">
-        <span>🎯 主攻</span>
-        <span class="big">
-            {{data.main}}
-        </span>
-    </div>
+<div class="pick">
+<span>⚙️ 次选</span>
+<span class="big">
+{{data.second}}
+</span>
+</div>
 
-    <div class="pick">
-        <span>⚙️ 次选</span>
-        <span class="big">
-            {{data.second}}
-        </span>
-    </div>
+<div class="pick">
+<span>🛡️ 防守</span>
+<span class="big">
+{{data.defense}}
+</span>
+</div>
 
-    <div class="pick">
-        <span>🛡️ 防守</span>
-        <span class="big">
-            {{data.defense}}
-        </span>
-    </div>
+<div class="pick">
+<span>🚫 杀组</span>
+<span class="big">
+{{data.kill}}
+</span>
+</div>
 
-    <div class="pick">
-        <span>🚫 杀组</span>
-        <span class="big">
-            {{data.kill}}
-        </span>
-    </div>
+<h3>
+🔥 Confidence
+{{data.confidence}}%
+</h3>
 
-    <div class="confidence-box">
+<div class="bar">
+<div class="fill"
+style="
+width:
+{{data.confidence}}%;
+">
+</div>
+</div>
 
-        <h3>
-            🔥 Confidence
-            {{data.confidence}}%
-        </h3>
+<h3>
+📈 Accuracy
+{{data.accuracy}}
+</h3>
 
-        <div class="bar">
-            <div class="fill"
-            style="
-            width:
-            {{data.confidence}}%;
-            ">
-            </div>
-        </div>
+<div style="
+margin-top:25px;
+background:#21262d;
+padding:20px;
+border-radius:20px;
+">
 
-        <h3>
-            📈 Accuracy
-            {{data.accuracy}}
-        </h3>
+<h3>📜 Recent Results</h3>
 
-    </div>
+{% for item in logs %}
 
-    <!-- RECENT RESULTS -->
-    <div style="
-    margin-top:25px;
-    background:#21262d;
-    padding:20px;
-    border-radius:20px;
-    ">
+<div style="
+display:flex;
+justify-content:space-between;
+padding:10px 0;
+border-bottom:
+1px solid #333;
+">
 
-        <h3>📜 Recent Results</h3>
+<span>
+{{item.actual}}
+</span>
 
-        {% for item in logs %}
+<span>
+{{item.pick[0]}}
+/
+{{item.pick[1]}}
+</span>
 
-        <div style="
-        display:flex;
-        justify-content:space-between;
-        padding:10px 0;
-        border-bottom:
-        1px solid #333;
-        ">
+<span>
+{% if item.win %}
+✅
+{% else %}
+❌
+{% endif %}
+</span>
 
-            <span>
-                Round {{item.round}}
-            </span>
+</div>
 
-            <span>
-                {{item.actual}}
-            </span>
+{% endfor %}
 
-            <span>
-                {{item.pick[0]}}
-                /
-                {{item.pick[1]}}
-            </span>
-
-            <span>
-                {% if item.win %}
-                ✅
-                {% else %}
-                ❌
-                {% endif %}
-            </span>
-
-        </div>
-
-        {% endfor %}
-
-    </div>
+</div>
 
 </div>
 
 </body>
 </html>
+```
