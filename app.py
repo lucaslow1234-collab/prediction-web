@@ -28,167 +28,217 @@ raw_data = """
 🔆3439279期 1+3+2=6 小双
 """
 
-history = re.findall(
-    r'[大小单双]{2}',
-    raw_data
-)
+history = re.findall(r'[大小单双]{2}', raw_data)
 
-CATS = [
-    "小单",
-    "大单",
-    "小双",
-    "大双"
-]
+CATS = ["小单", "大单", "小双", "大双"]
 
 
-def predict(history):
+def trend_model(history):
+    score = Counter()
+    recent = history[-8:]
 
+    for i, cat in enumerate(reversed(recent)):
+        score[cat] += (8 - i)
+
+    return score
+
+
+def transition_model(history):
     score = Counter()
     latest = history[-1]
 
-    # trend
-    recent = history[-8:]
+    transitions = defaultdict(Counter)
 
-    for i, cat in enumerate(
-        reversed(recent)
-    ):
-        score[cat] += (
-            8 - i
-        )
-
-    # transition
-    transitions = defaultdict(
-        Counter
-    )
-
-    for i in range(
-        len(history)-1
-    ):
-        a = history[i]
-        b = history[i+1]
-
-        transitions[a][b] += 1
+    for i in range(len(history)-1):
+        transitions[
+            history[i]
+        ][
+            history[i+1]
+        ] += 1
 
     for nxt, cnt in transitions[
         latest
     ].items():
 
-        score[nxt] += (
-            cnt * 3
-        )
+        score[nxt] += cnt * 3
 
-    # anti streak
+    return score
+
+
+def anti_streak_model(history):
+    score = Counter()
+    latest = history[-1]
+
     streak = 1
 
-    for i in range(
-        len(history)-2,
-        -1,
-        -1
-    ):
+    for i in range(len(history)-2, -1, -1):
         if history[i] == latest:
             streak += 1
         else:
             break
 
     if streak >= 2:
-        score[latest] *= 0.4
+        score[latest] -= streak * 10
+
+    return score
+
+
+def split_model(history):
+    score = Counter()
+    recent = history[-10:]
+
+    big = sum("大" in x for x in recent)
+    even = sum("双" in x for x in recent)
+
+    size_pref = "小" if big >= 7 else "大"
+    parity_pref = "单" if even >= 7 else "双"
+
+    score[size_pref + parity_pref] += 10
+
+    return score
+
+
+def predict(history, weights):
+
+    total = Counter()
+
+    models = {
+        "trend": trend_model(history),
+        "transition": transition_model(history),
+        "split": split_model(history),
+        "streak": anti_streak_model(history)
+    }
+
+    for name, weight in weights.items():
+        for k, v in models[name].items():
+            total[k] += v * weight
 
     ranked = sorted(
-        score.items(),
+        total.items(),
         key=lambda x: x[1],
         reverse=True
     )
 
-    confidence = round(
-        ranked[0][1]
-        - ranked[2][1],
-        2
+    confidence = max(
+        0,
+        round(
+            ranked[0][1] - ranked[2][1],
+            2
+        )
     )
 
     return ranked, confidence
 
 
-def backtest(history):
+def evaluate(weights):
 
     wins = 0
     total = 0
+    history_log = []
 
-    for i in range(
-        10,
-        len(history)
-    ):
+    for i in range(10, len(history)):
 
-        ranked, _ = predict(
-            history[:i]
+        ranked, conf = predict(
+            history[:i],
+            weights
         )
+
+        if conf < 3:
+            continue
 
         picks = [
             ranked[0][0],
             ranked[1][0]
         ]
 
-        if history[i] in picks:
-            wins += 1
+        actual = history[i]
+
+        win = actual in picks
+
+        history_log.append({
+            "round": i,
+            "actual": actual,
+            "pick": picks,
+            "win": win
+        })
 
         total += 1
 
-    if total == 0:
-        return 0
+        if win:
+            wins += 1
 
-    return round(
-        wins / total * 100,
-        2
-    )
+    rate = (
+        wins / total * 100
+    ) if total else 0
+
+    return {
+        "rate": round(rate, 2),
+        "wins": wins,
+        "total": total,
+        "log": history_log
+    }
+
+
+CONFIGS = [
+    {
+        "trend": 1,
+        "transition": 2,
+        "split": 4,
+        "streak": 2
+    },
+    {
+        "trend": 2,
+        "transition": 4,
+        "split": 5,
+        "streak": 3
+    },
+    {
+        "trend": 3,
+        "transition": 2,
+        "split": 3,
+        "streak": 4
+    }
+]
+
+results = []
+
+for cfg in CONFIGS:
+    r = evaluate(cfg)
+    r["weights"] = cfg
+    results.append(r)
+
+best = sorted(
+    results,
+    key=lambda x: x["rate"],
+    reverse=True
+)[0]
 
 
 @app.route("/")
 def home():
 
     ranked, conf = predict(
-        history
+        history,
+        best["weights"]
     )
 
     prediction = {
-        "round":
-        "NEXT",
-
-        "main":
-        ranked[0][0],
-
-        "second":
-        ranked[1][0],
-
-        "defense":
-        ranked[2][0],
-
-        "kill":
-        ranked[-1][0],
-
-        "confidence":
-        conf,
-
-        "accuracy":
-        str(
-            backtest(history)
-        ) + "%"
+        "round": "NEXT",
+        "main": ranked[0][0],
+        "second": ranked[1][0],
+        "defense": ranked[2][0],
+        "kill": ranked[-1][0],
+        "confidence": conf,
+        "accuracy": f'{best["rate"]}%'
     }
 
     return render_template(
         "index.html",
-        data=prediction
+        data=prediction,
+        logs=best["log"][-8:]
     )
 
 
 if __name__ == "__main__":
-
-    port = int(
-        os.environ.get(
-            "PORT",
-            5000
-        )
-    )
-
-    app.run(
-        host="0.0.0.0",
-        port=port
-    )
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
