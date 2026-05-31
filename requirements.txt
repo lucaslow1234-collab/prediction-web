@@ -1,0 +1,6 @@
+flask
+telethon
+python-dotenv
+pandas
+sqlalchemy
+gunicorn
