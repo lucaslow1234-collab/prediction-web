@@ -1,38 +1,30 @@
-from flask import Flask, render_template
-import random
+from flask import Flask
 
 app = Flask(__name__)
 
 @app.route("/")
 def home():
-
-    fake_prediction = {
-        "round": "3439299",
-        "main": "大双",
-        "second": "小单",
-        "defense": "小双",
-        "kill": "大单",
-        "confidence": random.randint(65, 90),
-        "accuracy": "63.4%"
-    }
-
-    return render_template(
-        "index.html",
-        data=fake_prediction
-    )
-
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Prediction Web</title>
+    </head>
+    <body style="
+        background:#0d1117;
+        color:white;
+        text-align:center;
+        font-family:Arial;
+        padding-top:100px;
+    ">
+        <h1>⚡ Prediction Web</h1>
+        <h2>Website Working ✅</h2>
+        <p>Dark mode active</p>
+    </body>
+    </html>
+    """
 
 if __name__ == "__main__":
     import os
-
-    port = int(
-        os.environ.get(
-            "PORT",
-            5000
-        )
-    )
-
-    app.run(
-        host="0.0.0.0",
-        port=port
-    )
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
