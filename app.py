@@ -1,3 +1,4 @@
+```python
 from flask import Flask, render_template, request
 from collections import Counter, defaultdict
 import re
@@ -5,49 +6,39 @@ import os
 
 app = Flask(__name__)
 
-
 DEFAULT_DATA = """
-开奖历史
-🌑3439395期 5+5+2=12 小双
-🌑3439396期 5+3+5=13 小单
-🌑3439397期 3+9+7=19 大单
-🌑3439398期 6+3+7=16 大双
-🌑3439399期 9+5+6=20 大双
-🌑3439400期 5+8+5=18 大双
-🌑3439401期 2+0+5= 7 小单
-🌑3439402期 4+9+7=20 大双
-🌑3439403期 3+0+6= 9 小单
-🌑3439404期 5+8+4=17 大单
-🌑3439405期 3+0+0= 3 小单
-🌑3439406期 9+1+2=12 小双
-🌑3439407期 7+0+7=14 大双
-🌑3439408期 5+3+0= 8 小双
-🌑3439409期 1+2+4= 7 小单
-🌑3439410期 9+6+4=19 大单
-🌑3439411期 8+3+7=18 大双
-🌑3439412期 8+0+2=10 小双
-🌑3439413期 2+4+6=12 小双
-🌑3439414期 1+7+0= 8 小双
+🔆3439260期 4+1+4=9 小单
+🔆3439261期 0+6+6=12 小双
+🔆3439262期 1+3+9=13 小单
+🔆3439263期 7+9+4=20 大双
+🔆3439264期 5+6+5=16 大双
+🔆3439265期 4+9+4=17 大单
+🔆3439266期 1+5+2=8 小双
+🔆3439267期 1+2+7=10 小双
+🔆3439268期 6+7+5=18 大双
+🔆3439269期 7+1+9=17 大单
+🔆3439270期 0+8+9=17 大单
+🔆3439271期 0+5+8=13 小单
+🔆3439272期 5+9+3=17 大单
+🔆3439273期 5+8+1=14 大双
+🔆3439274期 5+7+6=18 大双
+🔆3439275期 4+9+4=17 大单
+🔆3439276期 3+1+8=12 小双
+🔆3439277期 6+7+3=16 大双
+🔆3439278期 1+0+9=10 小双
+🔆3439279期 1+3+2=6 小双
 """
 
-
-def parse_history(raw_data):
-    return re.findall(
-        r'[大小单双]{2}',
-        raw_data
-    )
+CATS = ["小单", "大单", "小双", "大双"]
 
 
-def predict(history):
+def parse_history(raw):
+    return re.findall(r'[大小单双]{2}', raw)
 
+
+def trend_model(history):
     score = Counter()
 
-    if len(history) < 5:
-        return [], 0
-
-    latest = history[-1]
-
-    # Trend
     recent = history[-8:]
 
     for i, cat in enumerate(
@@ -57,7 +48,17 @@ def predict(history):
             8 - i
         )
 
-    # Transition
+    return score
+
+
+def transition_model(history):
+    score = Counter()
+
+    if len(history) < 2:
+        return score
+
+    latest = history[-1]
+
     transitions = defaultdict(
         Counter
     )
@@ -77,7 +78,84 @@ def predict(history):
 
         score[nxt] += cnt * 3
 
-    # Anti streak
+    return score
+
+
+def pair_model(history):
+    score = Counter()
+
+    if len(history) < 3:
+        return score
+
+    pair = (
+        history[-2],
+        history[-1]
+    )
+
+    memory = defaultdict(
+        Counter
+    )
+
+    for i in range(
+        len(history)-2
+    ):
+        key = (
+            history[i],
+            history[i+1]
+        )
+
+        nxt = history[i+2]
+
+        memory[key][
+            nxt
+        ] += 1
+
+    for nxt, cnt in memory[
+        pair
+    ].items():
+
+        score[nxt] += cnt * 5
+
+    return score
+
+
+def split_model(history):
+
+    score = Counter()
+
+    recent = history[-10:]
+
+    big = sum(
+        "大" in x
+        for x in recent
+    )
+
+    even = sum(
+        "双" in x
+        for x in recent
+    )
+
+    size_pref = "小" if big >= 7 else "大"
+    parity_pref = (
+        "单"
+        if even >= 7
+        else "双"
+    )
+
+    score[
+        size_pref
+        + parity_pref
+    ] += 10
+
+    return score
+
+
+def anti_streak(history):
+
+    score = Counter()
+
+    latest = history[-1]
+
     streak = 1
 
     for i in range(
@@ -91,7 +169,42 @@ def predict(history):
             break
 
     if streak >= 2:
-        score[latest] *= 0.4
+        score[
+            latest
+        ] -= (
+            streak * 8
+        )
+
+    return score
+
+
+def predict(history):
+
+    if len(history) < 5:
+        return [], 0
+
+    score = Counter()
+
+    models = [
+        trend_model(history),
+        transition_model(history),
+        pair_model(history),
+        split_model(history),
+        anti_streak(history)
+    ]
+
+    weights = [
+        2, 3, 5, 4, 2
+    ]
+
+    for m, w in zip(
+        models,
+        weights
+    ):
+        for k, v in m.items():
+            score[k] += (
+                v * w
+            )
 
     ranked = sorted(
         score.items(),
@@ -99,14 +212,14 @@ def predict(history):
         reverse=True
     )
 
-    confidence = 0
-
-    if len(ranked) >= 3:
-        confidence = round(
+    confidence = max(
+        0,
+        round(
             ranked[0][1]
             - ranked[2][1],
             2
         )
+    )
 
     return ranked, confidence
 
@@ -141,7 +254,6 @@ def backtest(history):
         )
 
         logs.append({
-            "round": i,
             "actual": actual,
             "pick": picks,
             "win": win
@@ -164,7 +276,10 @@ def backtest(history):
 
 @app.route(
     "/",
-    methods=["GET", "POST"]
+    methods=[
+        "GET",
+        "POST"
+    ]
 )
 def home():
 
@@ -191,8 +306,7 @@ def home():
     prediction = {
         "main":
         ranked[0][0]
-        if len(ranked) > 0
-        else "-",
+        if ranked else "-",
 
         "second":
         ranked[1][0]
@@ -206,14 +320,16 @@ def home():
 
         "kill":
         ranked[-1][0]
-        if len(ranked) > 0
-        else "-",
+        if ranked else "-",
 
         "confidence":
-        conf,
+        min(conf, 100),
 
         "accuracy":
-        str(rate) + "%"
+        str(rate) + "%",
+
+        "skip":
+        conf < 4
     }
 
     return render_template(
@@ -236,3 +352,4 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=port
     )
+```
