@@ -32,7 +32,29 @@ DEFAULT_DATA = """
 CATS = ["小单", "大单", "小双", "大双"]
 
 
-def parse_history(raw):
+```python
+try:
+    with open(
+        "history.txt",
+        "r",
+        encoding="utf-8"
+    ) as f:
+
+        auto_history = (
+            f.read()
+        )
+
+    history = re.findall(
+        r'[大小单双]{2}',
+        auto_history
+    )
+
+except:
+    history = parse_history(
+        raw_data
+    )
+```
+
     return re.findall(r'[大小单双]{2}', raw)
 
 
