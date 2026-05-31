@@ -4,3 +4,5 @@ python-dotenv
 pandas
 sqlalchemy
 gunicorn
+requests
+beautifulsoup4
