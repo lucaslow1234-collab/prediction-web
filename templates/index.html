@@ -1,1 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Prediction Web</title>
 
+    <meta name="viewport"
+    content="width=device-width, initial-scale=1">
+
+    <style>
+
+        body{
+            background:#0d1117;
+            font-family:Arial;
+            color:white;
+            margin:0;
+            padding:20px;
+        }
+
+        .card{
+            background:#161b22;
+            border-radius:25px;
+            padding:25px;
+            box-shadow:
+            0 0 30px rgba(
+            0,0,0,0.4);
+
+            max-width:500px;
+            margin:auto;
+        }
+
+        h1{
+            text-align:center;
+            margin-bottom:10px;
+        }
+
+        .round{
+            text-align:center;
+            color:#999;
+            margin-bottom:25px;
+        }
+
+        .pick{
+            display:flex;
+            justify-content:
+            space-between;
+
+            margin:18px 0;
+
+            padding:18px;
+
+            background:#21262d;
+
+            border-radius:18px;
+
+            font-size:22px;
+        }
+
+        .big{
+            font-size:28px;
+            font-weight:bold;
+        }
+
+        .confidence-box{
+            margin-top:25px;
+        }
+
+        .bar{
+            background:#222;
+            height:20px;
+            border-radius:20px;
+            overflow:hidden;
+        }
+
+        .fill{
+            background:
+            linear-gradient(
+            90deg,
+            #00ff88,
+            #00ccff
+            );
+
+            height:100%;
+        }
+
+        .footer{
+            text-align:center;
+            color:#aaa;
+            margin-top:20px;
+        }
+
+    </style>
+</head>
+
+<body>
+
+<div class="card">
+
+    <h1>⚡ Prediction Web</h1>
+
+    <div class="round">
+        Round {{data.round}}
+    </div>
+
+    <div class="pick">
+        <span>🎯 主攻</span>
+        <span class="big">
+            {{data.main}}
+        </span>
+    </div>
+
+    <div class="pick">
+        <span>⚙️ 次选</span>
+        <span class="big">
+            {{data.second}}
+        </span>
+    </div>
+
+    <div class="pick">
+        <span>🛡️ 防守</span>
+        <span class="big">
+            {{data.defense}}
+        </span>
+    </div>
+
+    <div class="pick">
+        <span>🚫 杀组</span>
+        <span class="big">
+            {{data.kill}}
+        </span>
+    </div>
+
+    <div class="confidence-box">
+
+        <h3>
+        🔥 Confidence
+        {{data.confidence}}%
+        </h3>
+
+        <div class="bar">
+            <div class="fill"
+            style="
+            width:
+            {{data.confidence}}%;
+            ">
+            </div>
+        </div>
+
+        <h3>
+        📈 Accuracy
+        {{data.accuracy}}
+        </h3>
+
+    </div>
+
+</div>
+
+</body>
+</html>
