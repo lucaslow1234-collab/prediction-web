@@ -21,13 +21,20 @@ DEFAULT_DATA = """
 
 
 def parse_history(raw):
-    return re.findall(r"(小单|大单|小双|大双)", raw)
+    return re.findall(
+        r"(小单|大单|小双|大双)",
+        raw
+    )
 
 
 def trend_model(history):
     score = Counter()
 
-    for i, item in enumerate(reversed(history[-8:])):
+    recent = history[-8:]
+
+    for i, item in enumerate(
+        reversed(recent)
+    ):
         score[item] += (8 - i)
 
     return score
@@ -40,9 +47,14 @@ def transition_model(history):
         return score
 
     latest = history[-1]
-    transitions = defaultdict(Counter)
 
-    for i in range(len(history) - 1):
+    transitions = defaultdict(
+        Counter
+    )
+
+    for i in range(
+        len(history) - 1
+    ):
         transitions[
             history[i]
         ][
@@ -69,9 +81,13 @@ def pair_model(history):
         history[-1]
     )
 
-    memory = defaultdict(Counter)
+    memory = defaultdict(
+        Counter
+    )
 
-    for i in range(len(history) - 2):
+    for i in range(
+        len(history) - 2
+    ):
 
         key = (
             history[i],
@@ -80,7 +96,9 @@ def pair_model(history):
 
         nxt = history[i + 2]
 
-        memory[key][nxt] += 1
+        memory[key][
+            nxt
+        ] += 1
 
     for nxt, count in memory[
         pair
@@ -96,20 +114,31 @@ def split_model(history):
 
     recent = history[-10:]
 
-    big_count = sum(
+    big = sum(
         "大" in x
         for x in recent
     )
 
-    even_count = sum(
+    even = sum(
         "双" in x
         for x in recent
     )
 
-    size = "小" if big_count >= 7 else "大"
-    parity = "单" if even_count >= 7 else "双"
+    size = (
+        "小"
+        if big >= 7
+        else "大"
+    )
 
-    score[size + parity] += 10
+    parity = (
+        "单"
+        if even >= 7
+        else "双"
+    )
+
+    score[
+        size + parity
+    ] += 10
 
     return score
 
@@ -134,7 +163,9 @@ def anti_streak(history):
             break
 
     if streak >= 2:
-        score[latest] -= streak * 8
+        score[
+            latest
+        ] -= streak * 8
 
     return score
 
@@ -154,14 +185,18 @@ def predict(history):
         anti_streak(history)
     ]
 
-    weights = [2, 3, 5, 4, 2]
+    weights = [
+        2, 3, 5, 4, 2
+    ]
 
     for model, weight in zip(
         models,
         weights
     ):
         for k, v in model.items():
-            score[k] += v * weight
+            score[k] += (
+                v * weight
+            )
 
     ranked = sorted(
         score.items(),
@@ -187,7 +222,10 @@ def backtest(history):
     total = 0
     logs = []
 
-    for i in range(10, len(history)):
+    for i in range(
+        10,
+        len(history)
+    ):
 
         ranked, _ = predict(
             history[:i]
@@ -202,7 +240,10 @@ def backtest(history):
         ]
 
         actual = history[i]
-        win = actual in picks
+
+        win = (
+            actual in picks
+        )
 
         logs.append({
             "actual": actual,
@@ -219,12 +260,18 @@ def backtest(history):
         wins / total * 100
     ) if total else 0
 
-    return round(rate, 2), logs[-8:]
+    return round(
+        rate,
+        2
+    ), logs[-8:]
 
 
 @app.route(
     "/",
-    methods=["GET", "POST"]
+    methods=[
+        "GET",
+        "POST"
+    ]
 )
 def home():
 
@@ -236,43 +283,13 @@ def home():
             DEFAULT_DATA
         )
 
-    history = []
+    history = parse_history(
+        raw_data
+    )
 
-    # telegram auto
-    try:
-
-        if os.path.exists(
-            "history.txt"
-        ):
-
-            with open(
-                "history.txt",
-                "r",
-                encoding="utf-8"
-            ) as f:
-
-                auto_text = f.read()
-
-            history = parse_history(
-                auto_text
-            )
-
-            raw_data = auto_text
-
-    except Exception as e:
-
-        print(
-            "Telegram error:",
-            str(e)
-        )
-
-    # fallback
-    if not history:
-        history = parse_history(
-            raw_data
-        )
-
-    ranked, conf = predict(history)
+    ranked, conf = predict(
+        history
+    )
 
     rate, logs = backtest(
         history
