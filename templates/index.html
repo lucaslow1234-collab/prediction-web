@@ -4,14 +4,15 @@
 <head>
     <title>🔥 Prediction Web</title>
 
-    <meta name="viewport"
+    <meta
+    name="viewport"
     content="width=device-width, initial-scale=1">
 
     <style>
 
         body{
             background:#0d1117;
-            font-family:Arial;
+            font-family:Arial,sans-serif;
             color:white;
             margin:0;
             padding:20px;
@@ -19,40 +20,51 @@
 
         .card{
             background:#161b22;
-            border-radius:25px;
+            border-radius:28px;
             padding:25px;
             box-shadow:
-            0 0 30px rgba(
-            0,0,0,0.4);
-
-            max-width:500px;
+            0 0 40px rgba(
+            0,0,0,0.45);
+            max-width:550px;
             margin:auto;
         }
 
         h1{
             text-align:center;
+            margin-bottom:20px;
         }
 
         textarea{
             width:100%;
             height:220px;
-            background:#111;
+            background:#0f141b;
             color:white;
-            border:none;
-            border-radius:20px;
-            padding:15px;
-            margin-bottom:20px;
+            border:1px solid #2a2f36;
+            border-radius:22px;
+            padding:16px;
             font-size:16px;
             box-sizing:border-box;
+            resize:none;
+            outline:none;
+            margin-bottom:15px;
+        }
+
+        textarea:focus{
+            border-color:#00ccff;
         }
 
         button{
             width:100%;
             padding:18px;
             border:none;
-            border-radius:20px;
+            border-radius:22px;
             font-size:20px;
-            background:#00c3ff;
+            background:
+            linear-gradient(
+            135deg,
+            #00c3ff,
+            #00ff88
+            );
             color:black;
             font-weight:bold;
             cursor:pointer;
@@ -61,17 +73,62 @@
 
         .pick{
             display:flex;
-            justify-content:space-between;
-            margin:15px 0;
-            padding:18px;
-            background:#21262d;
-            border-radius:18px;
+            justify-content:
+            space-between;
+            align-items:center;
+            margin:16px 0;
+            padding:20px;
+            border-radius:22px;
             font-size:22px;
+            font-weight:bold;
+            box-shadow:
+            0 0 25px rgba(
+            0,0,0,0.25);
+        }
+
+        .main{
+            background:
+            linear-gradient(
+            135deg,
+            #00ff88,
+            #00c853
+            );
+        }
+
+        .second{
+            background:
+            linear-gradient(
+            135deg,
+            #00ccff,
+            #2962ff
+            );
+        }
+
+        .defense{
+            background:
+            linear-gradient(
+            135deg,
+            #ffd54f,
+            #ff9800
+            );
+        }
+
+        .kill{
+            background:
+            linear-gradient(
+            135deg,
+            #ff5252,
+            #d50000
+            );
         }
 
         .big{
-            font-size:28px;
+            font-size:30px;
             font-weight:bold;
+        }
+
+        .stats{
+            margin-top:25px;
         }
 
         .bar{
@@ -79,6 +136,7 @@
             height:20px;
             border-radius:20px;
             overflow:hidden;
+            margin-bottom:20px;
         }
 
         .fill{
@@ -88,8 +146,31 @@
             #00ff88,
             #00ccff
             );
-
             height:100%;
+        }
+
+        .recent{
+            margin-top:25px;
+            background:#21262d;
+            padding:20px;
+            border-radius:22px;
+        }
+
+        .row{
+            display:flex;
+            justify-content:
+            space-between;
+            padding:12px 0;
+            border-bottom:
+            1px solid #333;
+            font-size:15px;
+        }
+
+        .footer{
+            text-align:center;
+            color:#888;
+            margin-top:20px;
+            font-size:13px;
         }
 
     </style>
@@ -114,33 +195,35 @@ placeholder="Paste history here..."
 
 </form>
 
-<div class="pick">
+<div class="pick main">
 <span>🎯 主攻</span>
 <span class="big">
 {{data.main}}
 </span>
 </div>
 
-<div class="pick">
+<div class="pick second">
 <span>⚙️ 次选</span>
 <span class="big">
 {{data.second}}
 </span>
 </div>
 
-<div class="pick">
+<div class="pick defense">
 <span>🛡️ 防守</span>
 <span class="big">
 {{data.defense}}
 </span>
 </div>
 
-<div class="pick">
+<div class="pick kill">
 <span>🚫 杀组</span>
 <span class="big">
 {{data.kill}}
 </span>
 </div>
+
+<div class="stats">
 
 <h3>
 🔥 Confidence
@@ -148,7 +231,8 @@ placeholder="Paste history here..."
 </h3>
 
 <div class="bar">
-<div class="fill"
+<div
+class="fill"
 style="
 width:
 {{data.confidence}}%;
@@ -161,24 +245,15 @@ width:
 {{data.accuracy}}
 </h3>
 
-<div style="
-margin-top:25px;
-background:#21262d;
-padding:20px;
-border-radius:20px;
-">
+</div>
+
+<div class="recent">
 
 <h3>📜 Recent Results</h3>
 
 {% for item in logs %}
 
-<div style="
-display:flex;
-justify-content:space-between;
-padding:10px 0;
-border-bottom:
-1px solid #333;
-">
+<div class="row">
 
 <span>
 {{item.actual}}
@@ -204,7 +279,48 @@ border-bottom:
 
 </div>
 
+<div class="footer">
+Auto Prediction V2 ⚡
 </div>
+
+</div>
+
+<!-- AUTO PREDICT -->
+<script>
+
+document.addEventListener(
+"DOMContentLoaded",
+function(){
+
+const textarea =
+document.querySelector(
+'textarea[name="history"]'
+);
+
+if(!textarea) return;
+
+let timer;
+
+textarea.addEventListener(
+"input",
+function(){
+
+clearTimeout(timer);
+
+timer = setTimeout(
+function(){
+
+textarea.form.submit();
+
+},
+800
+);
+
+});
+
+});
+
+</script>
 
 </body>
 </html>
