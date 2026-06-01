@@ -21,15 +21,14 @@ DEFAULT_DATA = """
 
 
 def parse_history(raw):
-    return re.findall(r'[大小单双]{2}', raw)
+    return re.findall(r"(小单|大单|小双|大双)", raw)
 
 
 def trend_model(history):
     score = Counter()
-    recent = history[-8:]
 
-    for i, c in enumerate(reversed(recent)):
-        score[c] += (8 - i)
+    for i, item in enumerate(reversed(history[-8:])):
+        score[item] += (8 - i)
 
     return score
 
@@ -41,13 +40,20 @@ def transition_model(history):
         return score
 
     latest = history[-1]
-    trans = defaultdict(Counter)
+    transitions = defaultdict(Counter)
 
-    for i in range(len(history)-1):
-        trans[history[i]][history[i+1]] += 1
+    for i in range(len(history) - 1):
+        transitions[
+            history[i]
+        ][
+            history[i + 1]
+        ] += 1
 
-    for k, v in trans[latest].items():
-        score[k] += v * 3
+    for nxt, count in transitions[
+        latest
+    ].items():
+
+        score[nxt] += count * 3
 
     return score
 
@@ -58,29 +64,50 @@ def pair_model(history):
     if len(history) < 3:
         return score
 
-    pair = (history[-2], history[-1])
+    pair = (
+        history[-2],
+        history[-1]
+    )
+
     memory = defaultdict(Counter)
 
-    for i in range(len(history)-2):
-        key = (history[i], history[i+1])
-        nxt = history[i+2]
+    for i in range(len(history) - 2):
+
+        key = (
+            history[i],
+            history[i + 1]
+        )
+
+        nxt = history[i + 2]
+
         memory[key][nxt] += 1
 
-    for k, v in memory[pair].items():
-        score[k] += v * 5
+    for nxt, count in memory[
+        pair
+    ].items():
+
+        score[nxt] += count * 5
 
     return score
 
 
 def split_model(history):
     score = Counter()
+
     recent = history[-10:]
 
-    big = sum("大" in x for x in recent)
-    even = sum("双" in x for x in recent)
+    big_count = sum(
+        "大" in x
+        for x in recent
+    )
 
-    size = "小" if big >= 7 else "大"
-    parity = "单" if even >= 7 else "双"
+    even_count = sum(
+        "双" in x
+        for x in recent
+    )
+
+    size = "小" if big_count >= 7 else "大"
+    parity = "单" if even_count >= 7 else "双"
 
     score[size + parity] += 10
 
@@ -94,10 +121,13 @@ def anti_streak(history):
         return score
 
     latest = history[-1]
-
     streak = 1
 
-    for i in range(len(history)-2, -1, -1):
+    for i in range(
+        len(history) - 2,
+        -1,
+        -1
+    ):
         if history[i] == latest:
             streak += 1
         else:
@@ -126,7 +156,10 @@ def predict(history):
 
     weights = [2, 3, 5, 4, 2]
 
-    for model, weight in zip(models, weights):
+    for model, weight in zip(
+        models,
+        weights
+    ):
         for k, v in model.items():
             score[k] += v * weight
 
@@ -141,7 +174,8 @@ def predict(history):
     if len(ranked) >= 3:
         confidence = max(
             0,
-            ranked[0][1] - ranked[2][1]
+            ranked[0][1]
+            - ranked[2][1]
         )
 
     return ranked, confidence
@@ -155,7 +189,9 @@ def backtest(history):
 
     for i in range(10, len(history)):
 
-        ranked, _ = predict(history[:i])
+        ranked, _ = predict(
+            history[:i]
+        )
 
         if len(ranked) < 2:
             continue
@@ -186,51 +222,61 @@ def backtest(history):
     return round(rate, 2), logs[-8:]
 
 
-@app.route("/", methods=["GET", "POST"])
+@app.route(
+    "/",
+    methods=["GET", "POST"]
+)
 def home():
 
     raw_data = DEFAULT_DATA
 
-    # manual paste
     if request.method == "POST":
         raw_data = request.form.get(
             "history",
             DEFAULT_DATA
         )
 
-    # telegram auto mode
+    history = []
+
+    # telegram auto
     try:
-        import telegram_reader
 
-        with open(
-            "history.txt",
-            "r",
-            encoding="utf-8"
-        ) as f:
+        if os.path.exists(
+            "history.txt"
+        ):
 
-            auto_text = f.read()
+            with open(
+                "history.txt",
+                "r",
+                encoding="utf-8"
+            ) as f:
 
-        history = re.findall(
-            r'[大小单双]{2}',
-            auto_text
-        )
+                auto_text = f.read()
 
-        # show telegram data
-        raw_data = auto_text
+            history = parse_history(
+                auto_text
+            )
+
+            raw_data = auto_text
 
     except Exception as e:
 
         print(
-            "Telegram fallback:",
-            e
+            "Telegram error:",
+            str(e)
         )
 
+    # fallback
+    if not history:
         history = parse_history(
             raw_data
         )
 
     ranked, conf = predict(history)
-    rate, logs = backtest(history)
+
+    rate, logs = backtest(
+        history
+    )
 
     prediction = {
         "main":
@@ -255,7 +301,7 @@ def home():
         min(conf, 100),
 
         "accuracy":
-        str(rate) + "%"
+        f"{rate}%"
     }
 
     return render_template(
@@ -267,6 +313,7 @@ def home():
 
 
 if __name__ == "__main__":
+
     port = int(
         os.environ.get(
             "PORT",
