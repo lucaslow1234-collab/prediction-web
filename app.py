@@ -19,6 +19,7 @@ DEFAULT_DATA = """
 🔆3439269期 7+1+9=17 大单
 """
 
+
 def parse_history(raw):
     return re.findall(r'[大小单双]{2}', raw)
 
@@ -35,6 +36,7 @@ def trend_model(history):
 
 def transition_model(history):
     score = Counter()
+
     if len(history) < 2:
         return score
 
@@ -52,6 +54,7 @@ def transition_model(history):
 
 def pair_model(history):
     score = Counter()
+
     if len(history) < 3:
         return score
 
@@ -80,14 +83,20 @@ def split_model(history):
     parity = "单" if even >= 7 else "双"
 
     score[size + parity] += 10
+
     return score
 
 
 def anti_streak(history):
     score = Counter()
+
+    if not history:
+        return score
+
     latest = history[-1]
 
     streak = 1
+
     for i in range(len(history)-2, -1, -1):
         if history[i] == latest:
             streak += 1
@@ -101,6 +110,7 @@ def anti_streak(history):
 
 
 def predict(history):
+
     if len(history) < 5:
         return [], 0
 
@@ -116,33 +126,46 @@ def predict(history):
 
     weights = [2, 3, 5, 4, 2]
 
-    for m, w in zip(models, weights):
-        for k, v in m.items():
-            score[k] += v * w
+    for model, weight in zip(models, weights):
+        for k, v in model.items():
+            score[k] += v * weight
 
-    ranked = sorted(score.items(), key=lambda x: x[1], reverse=True)
+    ranked = sorted(
+        score.items(),
+        key=lambda x: x[1],
+        reverse=True
+    )
 
     confidence = 0
+
     if len(ranked) >= 3:
-        confidence = max(0, ranked[0][1] - ranked[2][1])
+        confidence = max(
+            0,
+            ranked[0][1] - ranked[2][1]
+        )
 
     return ranked, confidence
 
 
 def backtest(history):
+
     wins = 0
     total = 0
     logs = []
 
     for i in range(10, len(history)):
+
         ranked, _ = predict(history[:i])
 
         if len(ranked) < 2:
             continue
 
-        picks = [ranked[0][0], ranked[1][0]]
-        actual = history[i]
+        picks = [
+            ranked[0][0],
+            ranked[1][0]
+        ]
 
+        actual = history[i]
         win = actual in picks
 
         logs.append({
@@ -152,10 +175,14 @@ def backtest(history):
         })
 
         total += 1
+
         if win:
             wins += 1
 
-    rate = (wins / total * 100) if total else 0
+    rate = (
+        wins / total * 100
+    ) if total else 0
+
     return round(rate, 2), logs[-8:]
 
 
@@ -164,21 +191,71 @@ def home():
 
     raw_data = DEFAULT_DATA
 
+    # manual paste
     if request.method == "POST":
-        raw_data = request.form.get("history", DEFAULT_DATA)
+        raw_data = request.form.get(
+            "history",
+            DEFAULT_DATA
+        )
 
-    history = parse_history(raw_data)
+    # telegram auto mode
+    try:
+        import telegram_reader
+
+        with open(
+            "history.txt",
+            "r",
+            encoding="utf-8"
+        ) as f:
+
+            auto_text = f.read()
+
+        history = re.findall(
+            r'[大小单双]{2}',
+            auto_text
+        )
+
+        # show telegram data
+        raw_data = auto_text
+
+    except Exception as e:
+
+        print(
+            "Telegram fallback:",
+            e
+        )
+
+        history = parse_history(
+            raw_data
+        )
 
     ranked, conf = predict(history)
     rate, logs = backtest(history)
 
     prediction = {
-        "main": ranked[0][0] if ranked else "-",
-        "second": ranked[1][0] if len(ranked) > 1 else "-",
-        "defense": ranked[2][0] if len(ranked) > 2 else "-",
-        "kill": ranked[-1][0] if ranked else "-",
-        "confidence": min(conf, 100),
-        "accuracy": str(rate) + "%"
+        "main":
+        ranked[0][0]
+        if ranked else "-",
+
+        "second":
+        ranked[1][0]
+        if len(ranked) > 1
+        else "-",
+
+        "defense":
+        ranked[2][0]
+        if len(ranked) > 2
+        else "-",
+
+        "kill":
+        ranked[-1][0]
+        if ranked else "-",
+
+        "confidence":
+        min(conf, 100),
+
+        "accuracy":
+        str(rate) + "%"
     }
 
     return render_template(
@@ -190,6 +267,15 @@ def home():
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    port = int(
+        os.environ.get(
+            "PORT",
+            5000
+        )
+    )
+
+    app.run(
+        host="0.0.0.0",
+        port=port
+    )
 ```
