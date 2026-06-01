@@ -6,7 +6,7 @@ services:
     startCommand: gunicorn app:app
     envVars:
       - key: API_ID
-        sync: false
+        sync: true
       - key: API_HASH
         sync: false
       - key: PHONE_NUMBER
